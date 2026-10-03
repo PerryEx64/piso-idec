@@ -17,6 +17,15 @@ const VARIANTES: Record<Variante, string> = {
   peligro: `bg-[#ef6f5e] text-white ${RELIEVE_TEXTO}`,
 }
 
+/** Enlace con el mismo aspecto que un botón. */
+export function EnlaceBoton({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} className={`${BASE} inline-block ${VARIANTES.blanco}`}>
+      {children}
+    </a>
+  )
+}
+
 export function Boton({ variante = 'blanco', disabled, className = '', children, ...resto }: BotonProps) {
   return (
     <motion.button

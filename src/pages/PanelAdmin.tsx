@@ -1,6 +1,6 @@
 import { signOut, type User } from 'firebase/auth'
 import { useState } from 'react'
-import { Boton } from '../components/Boton'
+import { Boton, EnlaceBoton } from '../components/Boton'
 import { Cargando } from '../components/Cargando'
 import { Cuadricula } from '../components/Cuadricula'
 import { ActivarAcceso } from '../components/ActivarAcceso'
@@ -44,9 +44,7 @@ function BarraSesion({ usuario }: { usuario: User }) {
     <div className="flex w-full flex-wrap items-center justify-between gap-3 text-sm font-bold">
       <span className="text-tinta-suave">{usuario.email}</span>
       <div className="flex gap-3">
-        <a href="#/" className="rounded-2xl border-2 border-tinta bg-white px-4 py-2 font-display font-semibold shadow-[0_3px_0_#5b3a1e]">
-          Ver mapa público
-        </a>
+        <EnlaceBoton href="#/">Ver mapa público</EnlaceBoton>
         <Boton onClick={() => signOut(auth)}>Cerrar sesión</Boton>
       </div>
     </div>
