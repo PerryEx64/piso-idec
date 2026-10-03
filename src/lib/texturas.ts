@@ -6,59 +6,51 @@ const hash = (texto: string) => {
 
 const svgComoFondo = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 
-const ruido = (semilla: number) =>
-  svgComoFondo(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="f"><feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="3" seed="${semilla}"/><feColorMatrix values="0 0 0 0 0.55  0 0 0 0 0.55  0 0 0 0 0.58  0.8 0 0 0 -0.3"/></filter><rect width="100" height="100" filter="url(#f)"/></svg>`,
+const MADERAS = [
+  ['#f0b172', '#e29a58', '#f5bd82'],
+  ['#e8a05e', '#d9894a', '#efae6e'],
+  ['#dd8f4e', '#cc7a3c', '#e8a063'],
+  ['#f3b87a', '#e5a062', '#ec9f5a'],
+]
+
+const vetas = (coordenada: string) => {
+  const y1 = 7 + hash(`${coordenada}g1`) * 8
+  const y2 = 17 + hash(`${coordenada}g2`) * 8
+  return svgComoFondo(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">` +
+      `<path d="M0 ${y1} Q25 ${y1 - 5} 50 ${y1} T100 ${y1}" fill="none" stroke="rgba(130,65,20,0.32)" stroke-width="1.8" stroke-linecap="round"/>` +
+      `<path d="M0 ${y2} Q30 ${y2 + 4} 62 ${y2} T100 ${y2 - 2}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.6" stroke-linecap="round"/>` +
+      `</svg>`,
   )
+}
 
-const vetaMadera = (semilla: number) =>
-  svgComoFondo(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="f"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.55" numOctaves="4" seed="${semilla}"/><feColorMatrix values="0 0 0 0 0.16  0 0 0 0 0.07  0 0 0 0 0.02  2.4 0 0 0 -0.9"/></filter><rect width="100" height="100" filter="url(#f)"/></svg>`,
-  )
+/** Losa clara de arena: lo que todavía no tiene piso. Estilo ilustrado, sin ruido fotográfico. */
+export function estiloArena(coordenada: string) {
+  const luz = 84 + hash(coordenada) * 4
+  const punto = (sal: string) =>
+    `radial-gradient(circle at ${Math.round(hash(coordenada + sal) * 90 + 5)}% ${Math.round(hash(coordenada + sal + 'y') * 90 + 5)}%, rgba(170,140,95,0.3) 0 1.5px, transparent 2px)`
 
-const SEMILLAS = 12
-const semillaDe = (coordenada: string, sal: string) => 1 + Math.floor(hash(coordenada + sal) * SEMILLAS)
-
-/** Concreto de contrapiso: lo que todavía no tiene piso. */
-export function estiloConcreto(coordenada: string) {
-  const claridad = 17 + hash(coordenada) * 4
   return {
-    backgroundColor: `hsl(220 6% ${claridad}%)`,
-    backgroundImage: [
-      ruido(semillaDe(coordenada, 'c')),
-      `radial-gradient(ellipse at ${Math.round(hash(`${coordenada}x`) * 100)}% ${Math.round(hash(`${coordenada}y`) * 100)}%, rgba(255,255,255,0.07), transparent 65%)`,
-    ].join(', '),
-    backgroundSize: '100% 100%',
+    backgroundColor: `hsl(38 42% ${luz}%)`,
+    backgroundImage: [punto('a'), punto('b'), punto('c'), 'linear-gradient(160deg, rgba(255,255,255,0.6), rgba(255,255,255,0) 55%)'].join(', '),
   }
 }
 
-/** Parquet de tres tablas, con veta y variación de tono por baldosa. */
+/** Parquet de tres tablas con colores cálidos, vetas dibujadas y brillo superior. */
 export function estiloMadera(coordenada: string) {
-  const matiz = 24 + hash(`${coordenada}m`) * 8
-  const tabla = (sal: string) => {
-    const luz = 33 + hash(coordenada + sal) * 12
-    return `hsl(${matiz} 52% ${luz}%)`
-  }
-  const [a, b, c] = [tabla('a'), tabla('b'), tabla('c')]
-  const junta = 'rgba(20,9,2,0.7)'
-  const brillo = 'rgba(255,225,180,0.12)'
+  const paleta = MADERAS[Math.floor(hash(`${coordenada}p`) * MADERAS.length)]
+  const [a, b, c] = paleta
+  const veta = vetas(coordenada)
+  const tercio = '100% 33.333%'
 
   return {
     backgroundImage: [
-      'linear-gradient(135deg, rgba(255,235,200,0.22), transparent 45%)',
-      `linear-gradient(to bottom, transparent calc(33.33% - 1px), ${junta} calc(33.33% - 1px), ${junta} 33.33%, ${brillo} 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), ${junta} calc(66.66% - 1px), ${junta} 66.66%, ${brillo} 66.66%, transparent calc(66.66% + 1px))`,
-      vetaMadera(semillaDe(coordenada, 'v')),
-      `linear-gradient(to bottom, ${a} 0 33.33%, ${b} 33.33% 66.66%, ${c} 66.66% 100%)`,
+      'linear-gradient(to bottom, rgba(100,50,15,0.65) 0 2px, transparent 2px)',
+      'linear-gradient(to bottom, rgba(255,255,255,0.32), transparent 45%)',
+      veta,
+      `linear-gradient(to bottom, ${a} 0 33.333%, ${b} 33.333% 66.666%, ${c} 66.666% 100%)`,
     ].join(', '),
-    backgroundSize: '100% 100%',
+    backgroundSize: `${tercio}, ${tercio}, ${tercio}, 100% 100%`,
+    backgroundRepeat: 'repeat-y, repeat-y, repeat-y, no-repeat',
   }
-}
-
-const ruidoSuave = svgComoFondo(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="f"><feTurbulence type="fractalNoise" baseFrequency="0.35" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 0.05  0 0 0 0 0.04  0 0 0 0 0.03  0.6 0 0 0 -0.18"/></filter><rect width="200" height="200" filter="url(#f)"/></svg>`,
-)
-
-export const estiloYeso = {
-  backgroundImage: ruidoSuave,
-  backgroundSize: '200px 200px',
 }
