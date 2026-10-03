@@ -7,18 +7,46 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Piso de 16 filas (A–P) por 20 columnas (1–20). Si cambian las medidas, ajustar aquí también.
+    function coordenadaValida(coordenada) {
+      return coordenada.matches('^[A-P]([1-9]|1[0-9]|20)$');
+    }
+
+    function cuartoValido(cuarto) {
+      return cuarto is string && cuarto.size() <= 80;
+    }
+
+    // Una celda es un metro dividido en 4 cuartos; cada cuarto trae el nombre de quien lo aportó o '' si está libre.
+    function cuartosValidos(cuartos) {
+      return cuartos is list
+        && cuartos.size() == 4
+        && cuartoValido(cuartos[0])
+        && cuartoValido(cuartos[1])
+        && cuartoValido(cuartos[2])
+        && cuartoValido(cuartos[3])
+        && (cuartos[0] != '' || cuartos[1] != '' || cuartos[2] != '' || cuartos[3] != '');
+    }
+
+    function datosValidos() {
+      return request.resource.data.keys().hasOnly(['cuartos', 'fecha'])
+        && cuartosValidos(request.resource.data.cuartos)
+        && request.resource.data.fecha == request.time;
+    }
+
+    // Un cuarto ocupado solo puede liberarse (quedar ''), nunca pasar de una persona a otra.
+    function respetaCuarto(i) {
+      let antes = resource.data.get('cuartos', ['', '', '', '']);
+      let despues = request.resource.data.cuartos;
+      return despues[i] == antes[i] || antes[i] == '' || despues[i] == '';
+    }
+
     match /celdas/{coordenada} {
       allow read: if true;
 
-      // Una casilla ocupada no se reasigna: primero se libera (delete) y luego se crea de nuevo.
-      allow create: if esAdmin()
-        && coordenada.matches('^[A-G]([1-9]|10)$')
-        && request.resource.data.keys().hasOnly(['estado', 'nombre', 'fecha'])
-        && request.resource.data.estado == 'apadrinada'
-        && request.resource.data.nombre is string
-        && request.resource.data.nombre.size() > 0
-        && request.resource.data.nombre.size() <= 80
-        && request.resource.data.fecha == request.time;
+      allow create: if esAdmin() && coordenadaValida(coordenada) && datosValidos();
+
+      allow update: if esAdmin() && coordenadaValida(coordenada) && datosValidos()
+        && respetaCuarto(0) && respetaCuarto(1) && respetaCuarto(2) && respetaCuarto(3);
 
       allow delete: if esAdmin();
     }

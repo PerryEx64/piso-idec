@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { useContext, useState } from 'react'
-import { GiroInversoContexto } from '../lib/vista'
+import { memo, useMemo, useState } from 'react'
+import { aportesDe, cantidadEnMetros, cuartosLibres, estaCompleta, tieneAportes } from '../lib/cuartos'
 import { estiloArena, estiloMadera } from '../lib/texturas'
 import type { Celda as CeldaData, CeldaActiva } from '../types'
 
@@ -14,18 +14,23 @@ interface CeldaProps {
   onClick: (coordenada: string) => void
 }
 
-const SOMBRA_ARENA = 'inset 0 2px 0 rgba(255,255,255,0.8), inset 0 0 0 2px rgba(168,138,92,0.75), 0 3px 0 #a37e45, 0 5px 6px rgba(80,50,15,0.3)'
-const SOMBRA_MADERA = 'inset 0 2px 0 rgba(255,255,255,0.45), inset 0 0 0 2px #7a4017, 0 3px 0 #7a4017, 0 5px 7px rgba(90,45,10,0.35)'
-const CONTORNO_TEXTO = '0 1px 0 #6e3a17, 1px 0 0 #6e3a17, -1px 0 0 #6e3a17, 0 -1px 0 #6e3a17, 1px 1px 0 #6e3a17, -1px 1px 0 #6e3a17'
+function describir(coordenada: string, datos?: CeldaData) {
+  if (!tieneAportes(datos)) return `${coordenada}, libre`
+  const quienes = aportesDe(datos)
+    .map((a) => a.nombre)
+    .join(', ')
+  if (estaCompleta(datos)) return `${coordenada}, apadrinada por ${quienes}`
+  return `${coordenada}, apadrinada en parte por ${quienes}; libre ${cantidadEnMetros(cuartosLibres(datos))} de metro`
+}
 
-export function Celda({ coordenada, datos, seleccionada, girar, retraso, onActivar, onClick }: CeldaProps) {
-  const apadrinada = datos?.estado === 'apadrinada'
+export const Celda = memo(function Celda({ coordenada, datos, seleccionada, girar, retraso, onActivar, onClick }: CeldaProps) {
+  const conAportes = tieneAportes(datos)
   // Las celdas que ya venían apadrinadas al cargar no se animan; solo las que cambian después.
-  const [estabaApadrinada, setEstabaApadrinada] = useState(apadrinada)
-  const recienApadrinada = apadrinada && !estabaApadrinada
-  if (estabaApadrinada !== apadrinada) setEstabaApadrinada(apadrinada)
+  const [teniaAportes, setTeniaAportes] = useState(conAportes)
+  const recienApadrinada = conAportes && !teniaAportes
+  if (teniaAportes !== conAportes) setTeniaAportes(conAportes)
 
-  const giroInverso = useContext(GiroInversoContexto)
+  const fondo = useMemo(() => estiloArena(coordenada), [coordenada])
   const activar = (el: HTMLElement) => onActivar({ coordenada, rect: el.getBoundingClientRect() })
 
   return (
@@ -37,7 +42,7 @@ export function Celda({ coordenada, datos, seleccionada, girar, retraso, onActiv
     >
       <motion.button
         type="button"
-        aria-label={apadrinada ? `${coordenada}, apadrinada por ${datos?.nombre}` : `${coordenada}, disponible`}
+        aria-label={describir(coordenada, datos)}
         aria-pressed={seleccionada}
         onClick={(e) => {
           activar(e.currentTarget)
@@ -47,47 +52,55 @@ export function Celda({ coordenada, datos, seleccionada, girar, retraso, onActiv
         onMouseLeave={() => onActivar(null)}
         onFocus={(e) => activar(e.currentTarget)}
         onBlur={() => onActivar(null)}
-        whileHover={{ scale: 1.12, y: -3, zIndex: 5, rotate: apadrinada ? [0, -3, 3, 0] : 0 }}
+        whileHover={{ scale: 1.25, y: -3, zIndex: 5, rotate: conAportes ? [0, -3, 3, 0] : 0 }}
         whileTap={{ scale: 0.92, y: 1 }}
-        animate={{ y: seleccionada ? -5 : 0, scale: seleccionada ? 1.08 : 1 }}
+        animate={{ y: seleccionada ? -4 : 0, scale: seleccionada ? 1.15 : 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-        style={{ ...estiloArena(coordenada), boxShadow: apadrinada ? SOMBRA_MADERA : SOMBRA_ARENA }}
-        className={`relative aspect-square w-full overflow-hidden rounded-[7px] font-display text-[0.72rem] font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-turquesa sm:text-sm ${
-          seleccionada ? 'ring-[3px] ring-turquesa' : ''
-        } ${apadrinada ? 'text-white' : 'text-[#ad9468] hover:text-tinta'}`}
+        style={fondo}
+        className={`relative block aspect-square w-full overflow-hidden rounded-[3px] outline-none focus-visible:ring-2 focus-visible:ring-turquesa sm:rounded-[6px] ${
+          estaCompleta(datos) ? 'baldosa-madera' : 'baldosa-arena'
+        } ${seleccionada ? 'ring-2 ring-turquesa sm:ring-[3px]' : ''}`}
       >
-        {apadrinada && <Madera coordenada={coordenada} girar={girar} animar={recienApadrinada} />}
-        {seleccionada && <span aria-hidden className="absolute inset-0 bg-turquesa/25" />}
-        <motion.span
-          style={{ rotate: giroInverso, textShadow: apadrinada ? CONTORNO_TEXTO : undefined }}
-          className="relative block"
-        >
-          {coordenada}
-        </motion.span>
+        {conAportes && datos && <Madera coordenada={coordenada} datos={datos} girar={girar} animar={recienApadrinada} />}
+        {seleccionada && <span aria-hidden className="absolute inset-0 bg-turquesa/30" />}
       </motion.button>
       <DestellosAlApadrinar animar={recienApadrinada} />
     </motion.div>
   )
-}
+})
 
 interface MaderaProps {
   coordenada: string
+  datos: CeldaData
   girar: boolean
   animar: boolean
 }
 
-function Madera({ coordenada, girar, animar: animarAlMontar }: MaderaProps) {
+/** Madera continua si un solo nombre tiene el metro completo; si no, un cuarto de madera por aporte. */
+function Madera({ coordenada, datos, girar, animar: animarAlMontar }: MaderaProps) {
   const [animar] = useState(animarAlMontar)
+  const unSoloDueno = estaCompleta(datos) && datos.cuartos.every((c) => c === datos.cuartos[0])
+  const entero = useMemo(() => estiloMadera(coordenada), [coordenada])
+  const porCuarto = useMemo(() => datos.cuartos.map((_, i) => estiloMadera(`${coordenada}${i}`)), [coordenada, datos.cuartos])
 
   return (
     <motion.span
       aria-hidden
-      className="absolute inset-0"
-      style={{ ...estiloMadera(coordenada), rotate: girar ? 90 : 0 }}
+      className="absolute inset-0 grid grid-cols-2 grid-rows-2"
+      style={unSoloDueno ? { ...entero, rotate: girar ? 90 : 0 } : undefined}
       initial={animar ? { clipPath: 'inset(0 100% 0 0)', scale: 1.15 } : false}
       animate={{ clipPath: 'inset(0 0% 0 0)', scale: 1 }}
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-    />
+    >
+      {!unSoloDueno &&
+        datos.cuartos.map((dueno, i) => (
+          <span
+            key={i}
+            style={dueno ? porCuarto[i] : undefined}
+            className={dueno ? 'shadow-[inset_0_0_0_1px_#7a4017]' : undefined}
+          />
+        ))}
+    </motion.span>
   )
 }
 

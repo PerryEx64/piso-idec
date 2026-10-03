@@ -4,6 +4,7 @@ import { Cuadricula } from '../components/Cuadricula'
 import { Encabezado } from '../components/Encabezado'
 import { Progreso } from '../components/Progreso'
 import { COLUMNAS, FILAS } from '../config'
+import { totalCuartos } from '../lib/cuartos'
 import { useCeldas } from '../lib/useCeldas'
 import { useSesion } from '../lib/useSesion'
 
@@ -29,7 +30,7 @@ export function VistaPublica() {
         <Cargando />
       ) : (
         <>
-          <Progreso apadrinadas={Object.keys(celdas).length} total={TOTAL_CELDAS} />
+          <Progreso cuartos={totalCuartos(celdas)} totalMetros={TOTAL_CELDAS} />
           <Cuadricula celdas={celdas} />
           <EnlaceBoton href="#/ranking" variante="miel">
             Ver ranking de apadrinadores

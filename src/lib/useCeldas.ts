@@ -1,8 +1,9 @@
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, type DocumentData } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import type { CeldasPorCoordenada } from '../types'
 import { db } from './firebase'
 import { esCoordenadaValida } from './coordenadas'
+import { CUARTOS_POR_METRO } from './cuartos'
 
 interface EstadoCeldas {
   celdas: CeldasPorCoordenada
@@ -10,7 +11,16 @@ interface EstadoCeldas {
   error: Error | null
 }
 
-/** Escucha la colección `celdas` en tiempo real. Una celda sin documento está disponible. */
+/** Lee los cuartos de un documento. Acepta el formato anterior ({ estado, nombre }) como un metro completo. */
+function leerCuartos({ cuartos, estado, nombre }: DocumentData): string[] | null {
+  if (Array.isArray(cuartos) && cuartos.length === CUARTOS_POR_METRO && cuartos.every((c) => typeof c === 'string')) {
+    return cuartos.some(Boolean) ? cuartos : null
+  }
+  if (estado === 'apadrinada' && typeof nombre === 'string' && nombre) return [nombre, nombre, nombre, nombre]
+  return null
+}
+
+/** Escucha la colección `celdas` en tiempo real. Una celda sin documento está libre. */
 export function useCeldas(): EstadoCeldas {
   const [estado, setEstado] = useState<EstadoCeldas>({ celdas: {}, cargando: true, error: null })
 
@@ -21,10 +31,8 @@ export function useCeldas(): EstadoCeldas {
         (instantanea) => {
           const celdas: CeldasPorCoordenada = {}
           instantanea.forEach((documento) => {
-            const { estado: estadoCelda, nombre } = documento.data()
-            if (esCoordenadaValida(documento.id) && estadoCelda === 'apadrinada' && typeof nombre === 'string') {
-              celdas[documento.id] = { estado: 'apadrinada', nombre }
-            }
+            const cuartos = esCoordenadaValida(documento.id) ? leerCuartos(documento.data()) : null
+            if (cuartos) celdas[documento.id] = { cuartos }
           })
           setEstado({ celdas, cargando: false, error: null })
         },

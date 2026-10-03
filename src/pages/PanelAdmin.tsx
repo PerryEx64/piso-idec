@@ -5,20 +5,29 @@ import { Cargando } from '../components/Cargando'
 import { Cuadricula } from '../components/Cuadricula'
 import { ActivarAcceso } from '../components/ActivarAcceso'
 import { Encabezado } from '../components/Encabezado'
-import { LiberarCelda } from '../components/LiberarCelda'
+import { DetalleCelda } from '../components/DetalleCelda'
 import { LoginAdmin } from '../components/LoginAdmin'
 import { PanelAsignacion } from '../components/PanelAsignacion'
 import { Progreso } from '../components/Progreso'
 import { COLUMNAS, FILAS } from '../config'
-import { apadrinarCeldas, liberarCeldas } from '../lib/celdasAdmin'
+import { apadrinarCeldas, quitarAporteDeCelda } from '../lib/celdasAdmin'
+import {
+  CUARTOS_POR_METRO,
+  cuartosLibres,
+  estaCompleta,
+  etiquetaMetros,
+  tieneAportes,
+  totalCuartos,
+  type Aporte,
+} from '../lib/cuartos'
 import { ordenarCoordenadas, unirCoordenadas } from '../lib/coordenadas'
 import { auth } from '../lib/firebase'
 import { esPermisoDenegado, mensajeDeError } from '../lib/mensajesError'
 import { useCeldas } from '../lib/useCeldas'
 import { useSesion } from '../lib/useSesion'
-import type { CeldasPorCoordenada } from '../types'
 
 const TOTAL_CELDAS = COLUMNAS * FILAS
+const APORTES_POSIBLES = [4, 2, 1]
 
 export function PanelAdmin() {
   const { usuario, esAdmin, listo } = useSesion()
@@ -59,25 +68,25 @@ function BarraSesion({ usuario }: { usuario: User }) {
 
 type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
 
-const estaOcupada = (celdas: CeldasPorCoordenada, coordenada: string) => celdas[coordenada]?.estado === 'apadrinada'
-
 function EditorPiso({ usuario }: { usuario: User }) {
   const { celdas, cargando, error } = useCeldas()
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set())
-  const [ocupadaElegida, setOcupadaElegida] = useState<string | null>(null)
+  const [enfocada, setEnfocada] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
+  const [cuartos, setCuartos] = useState(CUARTOS_POR_METRO)
   const [trabajando, setTrabajando] = useState(false)
   const [mensaje, setMensaje] = useState<Mensaje>(null)
 
-  // Solo se asignan casillas libres; si alguien ocupa una seleccionada mientras tanto, se descarta sola.
-  const lista = ordenarCoordenadas([...seleccionadas].filter((c) => !estaOcupada(celdas, c)))
-  const ocupada = ocupadaElegida && estaOcupada(celdas, ocupadaElegida) ? ocupadaElegida : null
+  // Una casilla completa no se puede asignar; si otra persona la completa mientras tanto, se descarta sola.
+  const lista = ordenarCoordenadas([...seleccionadas].filter((c) => !estaCompleta(celdas[c])))
+  const detalle = enfocada && tieneAportes(celdas[enfocada]) ? enfocada : null
 
   const alTocarCelda = (coordenada: string) => {
     setMensaje(null)
-    if (estaOcupada(celdas, coordenada)) return setOcupadaElegida(coordenada)
+    const celda = celdas[coordenada]
+    setEnfocada(tieneAportes(celda) ? coordenada : null)
+    if (estaCompleta(celda)) return
 
-    setOcupadaElegida(null)
     const siguientes = new Set(seleccionadas)
     if (!siguientes.delete(coordenada)) siguientes.add(coordenada)
     setSeleccionadas(siguientes)
@@ -99,27 +108,26 @@ function EditorPiso({ usuario }: { usuario: User }) {
   const guardar = () => {
     const quien = nombre.trim()
     void ejecutar(
-      () => apadrinarCeldas(lista, quien),
+      () => apadrinarCeldas(celdas, lista, quien, cuartos),
       () => {
-        setMensaje({ tipo: 'ok', texto: `Listo: ${unirCoordenadas(lista)} apadrinadas por ${quien}.` })
+        setMensaje({ tipo: 'ok', texto: `Listo: ${etiquetaMetros(cuartos)} en ${unirCoordenadas(lista)} a nombre de ${quien}.` })
         setSeleccionadas(new Set())
         setNombre('')
       },
-      'No se pudo guardar. Es posible que alguna casilla ya esté ocupada; revisa el piso e inténtalo de nuevo.',
+      'Firebase rechazó el cambio. Revisa que las reglas de Firestore (firestore.rules) estén publicadas y que nadie más haya ocupado esa casilla.',
     )
   }
 
-  const liberar = () => {
-    if (!ocupada) return
-    const anterior = celdas[ocupada].nombre ?? ''
+  const quitar = (aporte: Aporte) => {
+    if (!detalle) return
     void ejecutar(
-      () => liberarCeldas([ocupada]),
+      () => quitarAporteDeCelda(celdas, detalle, aporte.nombre),
       () => {
-        // La casilla queda lista para asignarla de nuevo, con el nombre anterior a mano por si solo hay que corregirlo.
-        setMensaje({ tipo: 'ok', texto: `${ocupada} quedó libre y seleccionada para asignarla.` })
-        setSeleccionadas(new Set([...seleccionadas, ocupada]))
-        setOcupadaElegida(null)
-        if (!nombre.trim()) setNombre(anterior)
+        // La casilla queda lista para asignarla de nuevo, con el aporte anterior a mano por si solo había que corregirlo.
+        setMensaje({ tipo: 'ok', texto: `Se quitó el aporte de ${aporte.nombre} en ${detalle}. La casilla quedó seleccionada.` })
+        setSeleccionadas(new Set([...seleccionadas, detalle]))
+        if (!nombre.trim()) setNombre(aporte.nombre)
+        if (APORTES_POSIBLES.includes(aporte.cuartos)) setCuartos(aporte.cuartos)
       },
     )
   }
@@ -135,24 +143,26 @@ function EditorPiso({ usuario }: { usuario: User }) {
         <Cargando />
       ) : (
         <>
-          <Progreso apadrinadas={Object.keys(celdas).length} total={TOTAL_CELDAS} />
+          <Progreso cuartos={totalCuartos(celdas)} totalMetros={TOTAL_CELDAS} />
           <Cuadricula celdas={celdas} seleccionadas={seleccionadas} onSeleccionar={alTocarCelda} />
-          {ocupada && (
-            <LiberarCelda
-              key={ocupada}
-              coordenada={ocupada}
-              nombre={celdas[ocupada].nombre ?? ''}
-              liberando={trabajando}
-              onLiberar={liberar}
-              onCancelar={() => setOcupadaElegida(null)}
+          {detalle && (
+            <DetalleCelda
+              key={detalle}
+              coordenada={detalle}
+              celda={celdas[detalle]}
+              trabajando={trabajando}
+              onQuitar={quitar}
+              onCerrar={() => setEnfocada(null)}
             />
           )}
           <PanelAsignacion
-            seleccionadas={lista}
+            seleccionadas={lista.map((coordenada) => ({ coordenada, libres: cuartosLibres(celdas[coordenada]) }))}
             nombre={nombre}
+            cuartos={cuartos}
             guardando={trabajando}
             mensaje={mensaje}
             onNombre={setNombre}
+            onCuartos={setCuartos}
             onGuardar={guardar}
             onLimpiar={() => setSeleccionadas(new Set())}
           />

@@ -1,38 +1,40 @@
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { useEffect } from 'react'
+import { CUARTOS_POR_METRO, cantidadEnMetros } from '../lib/cuartos'
 
 interface ProgresoProps {
-  apadrinadas: number
-  total: number
+  /** Cuartos de metro ya aportados. */
+  cuartos: number
+  totalMetros: number
 }
 
 const RAYAS =
   'repeating-linear-gradient(-45deg, rgba(255,255,255,0.28) 0 10px, transparent 10px 20px), linear-gradient(to bottom, #f6b46c, #e07b39)'
 
-export function Progreso({ apadrinadas, total }: ProgresoProps) {
+export function Progreso({ cuartos, totalMetros }: ProgresoProps) {
   const sinMovimiento = useReducedMotion()
-  const porcentaje = Math.round((apadrinadas / total) * 100)
+  const porcentaje = (cuartos / (totalMetros * CUARTOS_POR_METRO)) * 100
   const contador = useMotionValue(0)
-  const entero = useTransform(contador, (v) => Math.round(v))
+  const aportado = useTransform(contador, (v) => cantidadEnMetros(Math.round(v)))
 
   useEffect(() => {
-    const controles = animate(contador, apadrinadas, { duration: sinMovimiento ? 0 : 1.4, ease: 'easeOut' })
+    const controles = animate(contador, cuartos, { duration: sinMovimiento ? 0 : 1.4, ease: 'easeOut' })
     return () => controles.stop()
-  }, [apadrinadas, contador, sinMovimiento])
+  }, [cuartos, contador, sinMovimiento])
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-3xl">
       <p className="mb-3 text-center font-display text-xl font-semibold text-tinta">
         <motion.span className="mx-0.5 inline-block rounded-xl bg-miel px-2.5 py-0.5 text-white [text-shadow:0_1px_0_#a15a1c]">
-          {entero}
+          {aportado}
         </motion.span>{' '}
-        de {total} metros apadrinados
+        de {totalMetros} metros apadrinados
       </p>
       <div
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={apadrinadas}
+        aria-valuemax={totalMetros}
+        aria-valuenow={cuartos / CUARTOS_POR_METRO}
         className="relative h-7 overflow-hidden rounded-full border-[3px] border-tinta bg-white p-[3px] shadow-[0_3px_0_#5b3a1e]"
       >
         <motion.div

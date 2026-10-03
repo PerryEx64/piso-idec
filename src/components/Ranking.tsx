@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
+import { etiquetaMetros } from '../lib/cuartos'
 import { calcularRanking } from '../lib/ranking'
 import type { CeldasPorCoordenada } from '../types'
 import { Boton } from './Boton'
@@ -17,7 +18,7 @@ export function Ranking({ celdas }: { celdas: CeldasPorCoordenada }) {
   const ranking = useMemo(() => calcularRanking(celdas), [celdas])
   const [verTodos, setVerTodos] = useState(false)
   const visibles = verTodos ? ranking : ranking.slice(0, CANTIDAD_INICIAL)
-  const maximo = ranking[0]?.metros ?? 1
+  const maximo = ranking[0]?.cuartos ?? 1
 
   return (
     <Tarjeta className="max-w-xl">
@@ -29,7 +30,7 @@ export function Ranking({ celdas }: { celdas: CeldasPorCoordenada }) {
         <>
           <ol className="mt-4 flex flex-col gap-3" aria-label="Ranking de apadrinadores">
             <AnimatePresence initial={false}>
-              {visibles.map(({ clave, nombre, metros, posicion }) => (
+              {visibles.map(({ clave, nombre, cuartos, posicion }) => (
                 <motion.li
                   key={clave}
                   layout
@@ -50,14 +51,14 @@ export function Ranking({ celdas }: { celdas: CeldasPorCoordenada }) {
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="truncate font-bold">{nombre}</span>
                       <span className="shrink-0 font-display text-sm font-semibold text-tinta-suave">
-                        {metros} {metros === 1 ? 'metro' : 'metros'}
+                        {etiquetaMetros(cuartos)}
                       </span>
                     </div>
                     <div className="mt-1 h-3.5 overflow-hidden rounded-full border-2 border-tinta bg-white">
                       <motion.div
                         className="h-full rounded-full bg-linear-to-b from-[#f6b46c] to-naranja"
                         initial={{ width: 0 }}
-                        animate={{ width: `${(metros / maximo) * 100}%` }}
+                        animate={{ width: `${(cuartos / maximo) * 100}%` }}
                         transition={{ type: 'spring', stiffness: 80, damping: 16 }}
                       />
                     </div>

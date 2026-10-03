@@ -8,11 +8,11 @@ import {
   type AnimationPlaybackControls,
   type PanInfo,
 } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { COLUMNAS, FILAS } from '../config'
 import { LETRAS, NUMEROS, coordenada } from '../lib/coordenadas'
-import { GiroInversoContexto } from '../lib/vista'
-import type { CeldaActiva, CeldasPorCoordenada } from '../types'
+import { aportesDe, cantidadEnMetros, cuartosLibres, estaCompleta, tieneAportes } from '../lib/cuartos'
+import type { Celda as CeldaDatos, CeldaActiva, CeldasPorCoordenada } from '../types'
 import { Celda } from './Celda'
 import { ControlesVista, type ModoVista } from './ControlesVista'
 import { Paredes } from './Paredes'
@@ -28,7 +28,8 @@ const INCLINACION_MAXIMA = 70
 const GIRO_PERSPECTIVA = -18
 const GRADOS_POR_PIXEL_GIRO = 0.4
 const GRADOS_POR_PIXEL_INCLINACION = 0.3
-const RELACION_FONDO_ANCHO = 0.8
+// Fondo ÷ ancho del piso, con un poco de margen por las etiquetas y los muros.
+const RELACION_FONDO_ANCHO = FILAS / COLUMNAS + 0.05
 const RETRASO_POR_DIAGONAL = 0.035
 const MARGEN_TARJETA = 70
 const TRANSICION_VISTA = { type: 'spring', stiffness: 80, damping: 18 } as const
@@ -54,12 +55,19 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
   })
   const posicionBrillo = useTransform(giro, (g) => `${50 + 50 * Math.sin(aRadianes(g))}%`)
 
+  // Funciones estables para que las 320 celdas no se vuelvan a dibujar cada vez que cambia la tarjeta.
+  const onSeleccionarRef = useRef(onSeleccionar)
+  useEffect(() => {
+    onSeleccionarRef.current = onSeleccionar
+  })
+  const alClickCelda = useCallback((coordenada: string) => onSeleccionarRef.current?.(coordenada), [])
+
   // Cierre con retraso: si el piso se mueve bajo el cursor, la tarjeta no parpadea.
-  const setActiva = (siguiente: CeldaActiva | null) => {
+  const setActiva = useCallback((siguiente: CeldaActiva | null) => {
     window.clearTimeout(temporizadorCierre.current)
     if (siguiente) setActivaInmediato(siguiente)
     else temporizadorCierre.current = window.setTimeout(() => setActivaInmediato(null), 120)
-  }
+  }, [])
 
   useEffect(() => {
     const cerrar = () => setActivaInmediato(null)
@@ -115,10 +123,8 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
     }, 50)
   }
 
-  const tarjeta = activa && celdas[activa.coordenada]?.estado === 'apadrinada' ? activa : null
-
   return (
-    <GiroInversoContexto.Provider value={giroInverso}>
+    <>
       <div className="flex w-full flex-col items-center gap-6">
         <motion.div
           className="relative w-full cursor-grab px-6 py-10 touch-pan-y select-none [perspective:2200px] active:cursor-grabbing"
@@ -141,33 +147,33 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
                 className="absolute -inset-3 rounded-md bg-[#7a4e24]/40 blur-xl"
                 style={{ transform: 'translateZ(-2px)' }}
               />
-              <div className="relative grid grid-cols-[1.5rem_1fr] gap-x-2 gap-y-1.5 rounded-[8px] bg-[#ffe6b3] p-2.5 shadow-[inset_0_0_0_3px_rgba(91,58,30,0.55)] [transform-style:preserve-3d]">
+              <div className="relative grid grid-cols-[1rem_1fr] gap-x-1 gap-y-1 sm:grid-cols-[1.5rem_1fr] sm:gap-x-2 sm:gap-y-1.5 rounded-[8px] bg-[#ffe6b3] p-1.5 shadow-[inset_0_0_0_3px_rgba(91,58,30,0.55)] [transform-style:preserve-3d]">
                 <Paredes giro={giro} inclinacion={inclinacion} />
                 <span />
-                <div className="grid px-[5px]" style={{ gridTemplateColumns: `repeat(${COLUMNAS}, minmax(0, 1fr))` }}>
+                <div className="grid px-[3px] sm:px-[5px]" style={{ gridTemplateColumns: `repeat(${COLUMNAS}, minmax(0, 1fr))` }}>
                   {NUMEROS.map((numero) => (
                     <motion.span
                       key={numero}
                       style={{ rotate: giroInverso }}
-                      className="block text-center font-display text-sm font-semibold text-tinta"
+                      className="block text-center font-display text-[0.5rem] font-semibold text-tinta sm:text-xs"
                     >
                       {numero}
                     </motion.span>
                   ))}
                 </div>
 
-                <div className="grid py-[5px]" style={{ gridTemplateRows: `repeat(${FILAS}, minmax(0, 1fr))` }}>
+                <div className="grid py-[3px] sm:py-[5px]" style={{ gridTemplateRows: `repeat(${FILAS}, minmax(0, 1fr))` }}>
                   {LETRAS.map((letra) => (
                     <div key={letra} className="flex items-center justify-center">
-                      <motion.span style={{ rotate: giroInverso }} className="block font-display text-base font-bold text-tinta">
+                      <motion.span style={{ rotate: giroInverso }} className="block font-display text-[0.55rem] font-bold text-tinta sm:text-sm">
                         {letra}
                       </motion.span>
                     </div>
                   ))}
                 </div>
 
-                <div className="relative rounded-[10px] bg-[#b98a4e] p-[5px] ring-[3px] ring-[#6e4519]">
-                  <div className="grid gap-[4px]" style={{ gridTemplateColumns: `repeat(${COLUMNAS}, minmax(0, 1fr))` }}>
+                <div className="relative rounded-[6px] bg-[#b98a4e] p-[3px] ring-2 ring-[#6e4519] sm:rounded-[10px] sm:p-[5px] sm:ring-[3px]">
+                  <div className="grid gap-[2px] sm:gap-[3px]" style={{ gridTemplateColumns: `repeat(${COLUMNAS}, minmax(0, 1fr))` }}>
                     {LETRAS.flatMap((letra, fila) =>
                       NUMEROS.map((numero, columna) => {
                         const coord = coordenada(letra, numero)
@@ -180,7 +186,7 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
                             girar={(fila + columna) % 2 === 1}
                             retraso={(fila + columna) * RETRASO_POR_DIAGONAL}
                             onActivar={setActiva}
-                            onClick={(c) => onSeleccionar?.(c)}
+                            onClick={alClickCelda}
                           />
                         )
                       }),
@@ -207,16 +213,18 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
       </div>
 
       <AnimatePresence>
-        {tarjeta && <TarjetaNombre key={tarjeta.coordenada} activa={tarjeta} nombre={celdas[tarjeta.coordenada]?.nombre} />}
+        {activa && <TarjetaCelda key={activa.coordenada} activa={activa} celda={celdas[activa.coordenada]} />}
       </AnimatePresence>
-    </GiroInversoContexto.Provider>
+    </>
   )
 }
 
-function TarjetaNombre({ activa, nombre }: { activa: CeldaActiva; nombre?: string }) {
+function TarjetaCelda({ activa, celda }: { activa: CeldaActiva; celda?: CeldaDatos }) {
   const { rect } = activa
   const abajo = rect.top < MARGEN_TARJETA
   const x = limitar(rect.left + rect.width / 2, MARGEN_TARJETA, window.innerWidth - MARGEN_TARJETA)
+  const aportes = aportesDe(celda)
+  const duenoUnico = estaCompleta(celda) && aportes.length === 1
 
   return (
     <div
@@ -233,12 +241,24 @@ function TarjetaNombre({ activa, nombre }: { activa: CeldaActiva; nombre?: strin
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.8 }}
         transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-        className="flex items-center gap-2 whitespace-nowrap rounded-2xl border-2 border-tinta bg-white px-3 py-1.5 font-bold text-tinta shadow-[0_3px_0_#5b3a1e]"
+        className="flex items-start gap-2 whitespace-nowrap rounded-2xl border-2 border-tinta bg-white px-3 py-1.5 font-bold text-tinta shadow-[0_3px_0_#5b3a1e]"
       >
         <span className="rounded-lg bg-miel px-1.5 py-0.5 font-display text-xs text-white [text-shadow:0_1px_0_#a15a1c]">
           {activa.coordenada}
         </span>
-        {nombre}
+        <span className="flex flex-col">
+          {!tieneAportes(celda) && <span className="text-tinta-suave">Libre</span>}
+          {duenoUnico && aportes[0].nombre}
+          {!duenoUnico &&
+            aportes.map(({ clave, nombre, cuartos }) => (
+              <span key={clave}>
+                {nombre} <span className="text-tinta-suave">{cantidadEnMetros(cuartos)}</span>
+              </span>
+            ))}
+          {tieneAportes(celda) && !estaCompleta(celda) && (
+            <span className="text-tinta-suave">Libre {cantidadEnMetros(cuartosLibres(celda))}</span>
+          )}
+        </span>
       </motion.div>
     </div>
   )

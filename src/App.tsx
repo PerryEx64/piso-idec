@@ -16,7 +16,7 @@ function App() {
   return (
     <MotionConfig reducedMotion="user">
       <Fondo />
-      <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-8 px-4 py-10">
+      <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-8 px-4 py-10">
         {ruta === 'admin' ? <PanelAdmin /> : ruta === 'ranking' ? <VistaRanking /> : <VistaPublica />}
       </main>
     </MotionConfig>
