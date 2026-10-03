@@ -1,32 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState, type FormEvent } from 'react'
+import type { FormEvent } from 'react'
 import { Boton } from './Boton'
 import { CLASE_CAMPO, Tarjeta } from './Tarjeta'
 
 interface PanelAsignacionProps {
   seleccionadas: string[]
-  hayApadrinadas: boolean
   nombre: string
   guardando: boolean
   mensaje: { tipo: 'ok' | 'error'; texto: string } | null
   onNombre: (nombre: string) => void
   onGuardar: () => void
-  onLiberar: () => void
   onLimpiar: () => void
 }
 
-export function PanelAsignacion({
-  seleccionadas,
-  hayApadrinadas,
-  nombre,
-  guardando,
-  mensaje,
-  onNombre,
-  onGuardar,
-  onLiberar,
-  onLimpiar,
-}: PanelAsignacionProps) {
-  const [confirmandoLiberar, setConfirmandoLiberar] = useState(false)
+export function PanelAsignacion({ seleccionadas, nombre, guardando, mensaje, onNombre, onGuardar, onLimpiar }: PanelAsignacionProps) {
   const sinSeleccion = seleccionadas.length === 0
   const nombreValido = nombre.trim().length > 0
 
@@ -35,20 +22,16 @@ export function PanelAsignacion({
     if (nombreValido && !sinSeleccion) onGuardar()
   }
 
-  const liberar = () => {
-    if (!confirmandoLiberar) return setConfirmandoLiberar(true)
-    setConfirmandoLiberar(false)
-    onLiberar()
-  }
-
   return (
     <Tarjeta>
       <form onSubmit={guardar} className="flex flex-col gap-4">
         <div>
           <h2 className="font-display text-xl font-bold">
-            {sinSeleccion ? 'Toca las celdas que quieres asignar' : `${seleccionadas.length} seleccionada${seleccionadas.length > 1 ? 's' : ''}`}
+            {sinSeleccion
+              ? 'Toca las casillas libres que quieres asignar'
+              : `${seleccionadas.length} seleccionada${seleccionadas.length > 1 ? 's' : ''}`}
           </h2>
-          <ul className="mt-2 flex min-h-8 flex-wrap gap-1.5" aria-label="Celdas seleccionadas">
+          <ul className="mt-2 flex min-h-8 flex-wrap gap-1.5" aria-label="Casillas seleccionadas">
             <AnimatePresence>
               {seleccionadas.map((coordenada) => (
                 <motion.li
@@ -79,13 +62,8 @@ export function PanelAsignacion({
 
         <div className="flex flex-wrap gap-3">
           <Boton type="submit" variante="miel" disabled={guardando || sinSeleccion || !nombreValido}>
-            {guardando ? 'Guardando…' : hayApadrinadas ? 'Guardar nombre' : 'Apadrinar'}
+            {guardando ? 'Guardando…' : 'Apadrinar'}
           </Boton>
-          {hayApadrinadas && (
-            <Boton variante="peligro" disabled={guardando} onClick={liberar} onBlur={() => setConfirmandoLiberar(false)}>
-              {confirmandoLiberar ? '¿Seguro? Toca otra vez' : 'Liberar celdas'}
-            </Boton>
-          )}
           <Boton disabled={guardando || sinSeleccion} onClick={onLimpiar}>
             Quitar selección
           </Boton>

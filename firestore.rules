@@ -10,7 +10,8 @@ service cloud.firestore {
     match /celdas/{coordenada} {
       allow read: if true;
 
-      allow create, update: if esAdmin()
+      // Una casilla ocupada no se reasigna: primero se libera (delete) y luego se crea de nuevo.
+      allow create: if esAdmin()
         && coordenada.matches('^[A-G]([1-9]|10)$')
         && request.resource.data.keys().hasOnly(['estado', 'nombre', 'fecha'])
         && request.resource.data.estado == 'apadrinada'

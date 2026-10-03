@@ -18,9 +18,9 @@ const VARIANTES: Record<Variante, string> = {
 }
 
 /** Enlace con el mismo aspecto que un botón. */
-export function EnlaceBoton({ href, children }: { href: string; children: ReactNode }) {
+export function EnlaceBoton({ href, variante = 'blanco', children }: { href: string; variante?: Variante; children: ReactNode }) {
   return (
-    <a href={href} className={`${BASE} inline-block ${VARIANTES.blanco}`}>
+    <a href={href} className={`${BASE} inline-block ${VARIANTES[variante]}`}>
       {children}
     </a>
   )

@@ -31,6 +31,9 @@ export function VistaPublica() {
         <>
           <Progreso apadrinadas={Object.keys(celdas).length} total={TOTAL_CELDAS} />
           <Cuadricula celdas={celdas} />
+          <EnlaceBoton href="#/ranking" variante="miel">
+            Ver ranking de apadrinadores
+          </EnlaceBoton>
         </>
       )}
       {!usuario && (
