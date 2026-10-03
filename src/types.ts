@@ -6,3 +6,8 @@ export interface Celda {
 }
 
 export type CeldasPorCoordenada = Record<string, Celda>
+
+export interface CeldaActiva {
+  coordenada: string
+  rect: DOMRect
+}

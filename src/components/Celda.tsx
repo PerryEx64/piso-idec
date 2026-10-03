@@ -1,77 +1,85 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import type { Celda as CeldaData } from '../types'
+import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { estiloConcreto, estiloMadera } from '../lib/texturas'
+import type { Celda as CeldaData, CeldaActiva } from '../types'
 
 interface CeldaProps {
   coordenada: string
   datos?: CeldaData
   seleccionada: boolean
-  activa: boolean
-  tarjetaAbajo: boolean
-  onActivar: (coordenada: string | null) => void
+  girar: boolean
+  retraso: number
+  onActivar: (activa: CeldaActiva | null) => void
   onClick: (coordenada: string) => void
 }
 
-export function Celda({
-  coordenada,
-  datos,
-  seleccionada,
-  activa,
-  tarjetaAbajo,
-  onActivar,
-  onClick,
-}: CeldaProps) {
+const SOMBRA_CONCRETO = 'inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 2px rgba(0,0,0,0.5)'
+const SOMBRA_MADERA = 'inset 0 1px 0 rgba(255,235,200,0.35), inset 0 -2px 3px rgba(0,0,0,0.45)'
+
+export function Celda({ coordenada, datos, seleccionada, girar, retraso, onActivar, onClick }: CeldaProps) {
   const apadrinada = datos?.estado === 'apadrinada'
+  // Las celdas que ya venían apadrinadas al cargar no se animan; solo las que cambian después.
+  const [estabaApadrinada, setEstabaApadrinada] = useState(apadrinada)
+  const recienApadrinada = apadrinada && !estabaApadrinada
+  if (estabaApadrinada !== apadrinada) setEstabaApadrinada(apadrinada)
+
+  const activar = (el: HTMLElement) => onActivar({ coordenada, rect: el.getBoundingClientRect() })
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => onActivar(coordenada)}
-      onMouseLeave={() => onActivar(null)}
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: retraso, type: 'spring', stiffness: 220, damping: 22 }}
     >
       <motion.button
         type="button"
         aria-label={apadrinada ? `${coordenada}, apadrinada por ${datos?.nombre}` : `${coordenada}, disponible`}
         aria-pressed={seleccionada}
-        onClick={() => onClick(coordenada)}
-        onFocus={() => onActivar(coordenada)}
+        onClick={(e) => {
+          activar(e.currentTarget)
+          onClick(coordenada)
+        }}
+        onMouseEnter={(e) => activar(e.currentTarget)}
+        onMouseLeave={() => onActivar(null)}
+        onFocus={(e) => activar(e.currentTarget)}
         onBlur={() => onActivar(null)}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.96 }}
+        whileHover={{ scale: 1.05, zIndex: 5 }}
+        whileTap={{ scale: 0.97 }}
         animate={{ y: seleccionada ? -3 : 0 }}
-        className={`relative aspect-square w-full overflow-hidden rounded-md border text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-oro-300 sm:rounded-lg sm:text-sm ${
-          seleccionada
-            ? 'border-oro-300 bg-oro-400/20 shadow-lg shadow-oro-400/30 ring-2 ring-oro-300'
-            : apadrinada
-              ? 'border-oro-500/60 text-piso-950'
-              : 'border-piso-600/60 bg-piso-900 text-white/40 hover:border-oro-400/70 hover:text-white/80'
-        }`}
+        style={{ ...estiloConcreto(coordenada), boxShadow: SOMBRA_CONCRETO }}
+        className={`relative aspect-square w-full overflow-hidden rounded-[2px] text-[0.65rem] font-medium outline-none focus-visible:ring-2 focus-visible:ring-oro-300 sm:text-xs ${
+          seleccionada ? 'ring-2 ring-oro-300' : ''
+        } ${apadrinada ? 'text-[#fbe9cc]' : 'text-white/35 hover:text-white/75'}`}
       >
-        <motion.span
-          aria-hidden
-          className="absolute inset-0 origin-bottom bg-linear-to-br from-oro-300 to-oro-500"
-          initial={false}
-          animate={{ scaleY: apadrinada ? 1 : 0 }}
-          transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-        />
-        <span className="relative">{coordenada}</span>
+        {apadrinada && <Madera coordenada={coordenada} girar={girar} animar={recienApadrinada} />}
+        {seleccionada && <span aria-hidden className="absolute inset-0 bg-oro-400/25" />}
+        <span
+          className={`relative ${apadrinada ? '[text-shadow:0_1px_2px_rgba(20,9,2,0.9)]' : '[text-shadow:0_1px_0_rgba(0,0,0,0.5)]'}`}
+        >
+          {coordenada}
+        </span>
       </motion.button>
+    </motion.div>
+  )
+}
 
-      <AnimatePresence>
-        {activa && apadrinada && (
-          <motion.div
-            role="tooltip"
-            initial={{ opacity: 0, y: tarjetaAbajo ? -4 : 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-oro-500/40 bg-piso-800 px-3 py-1.5 text-sm text-white shadow-xl ${
-              tarjetaAbajo ? 'top-full mt-2' : 'bottom-full mb-2'
-            }`}
-          >
-            {datos?.nombre}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+interface MaderaProps {
+  coordenada: string
+  girar: boolean
+  animar: boolean
+}
+
+function Madera({ coordenada, girar, animar: animarAlMontar }: MaderaProps) {
+  const [animar] = useState(animarAlMontar)
+
+  return (
+    <motion.span
+      aria-hidden
+      className="absolute inset-0"
+      style={{ ...estiloMadera(coordenada), boxShadow: SOMBRA_MADERA, rotate: girar ? 90 : 0 }}
+      initial={animar ? { clipPath: 'inset(0 100% 0 0)', scale: 1.12 } : false}
+      animate={{ clipPath: 'inset(0 0% 0 0)', scale: 1 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+    />
   )
 }
