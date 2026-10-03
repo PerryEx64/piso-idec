@@ -26,6 +26,11 @@ export function PanelAdmin() {
   return (
     <>
       <Encabezado titulo="Panel de administración" subtitulo="Asigna cada metro a quien lo apadrina." />
+      {listo && !esAdmin && (
+        <div className="-mb-4 flex w-full max-w-md justify-start">
+          <EnlaceBoton href="#/">← Regresar</EnlaceBoton>
+        </div>
+      )}
       {!listo ? (
         <Cargando texto="Verificando sesión…" />
       ) : !usuario ? (

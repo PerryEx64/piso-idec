@@ -33,6 +33,14 @@ export function VistaPublica() {
           <Cuadricula celdas={celdas} />
         </>
       )}
+      {!usuario && (
+        <a
+          href="#/admin"
+          className="mt-auto rounded-lg px-2 py-1 text-sm font-bold text-tinta-suave underline decoration-2 underline-offset-4 outline-none hover:text-tinta focus-visible:ring-[3px] focus-visible:ring-turquesa"
+        >
+          Acceso para administradores
+        </a>
+      )}
     </>
   )
 }
