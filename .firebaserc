@@ -1,6 +1,7 @@
 {
   "projects": {
-    "piso-idec": "piso-idec"
+    "piso-idec": "piso-idec",
+    "default": "piso-idec"
   },
   "targets": {},
   "etags": {}
