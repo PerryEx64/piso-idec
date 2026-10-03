@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function esAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /celdas/{coordenada} {
+      allow read: if true;
+
+      allow create, update: if esAdmin()
+        && coordenada.matches('^[A-G]([1-9]|10)$')
+        && request.resource.data.keys().hasOnly(['estado', 'nombre', 'fecha'])
+        && request.resource.data.estado == 'apadrinada'
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0
+        && request.resource.data.nombre.size() <= 80
+        && request.resource.data.fecha == request.time;
+
+      allow delete: if esAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Activación con código de acceso. El código vive solo aquí, nunca en el cliente.
+      // TEMPORAL: reemplazar por un mecanismo mejor (invitaciones o una Cloud Function).
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['codigo', 'email', 'fecha'])
+        && request.resource.data.codigo == '1234'
+        && request.resource.data.email is string
+        && request.resource.data.fecha == request.time;
+
+      allow delete: if false;
+    }
+  }
+}
