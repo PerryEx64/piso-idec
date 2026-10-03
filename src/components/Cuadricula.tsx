@@ -3,19 +3,20 @@ import {
   animate,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
   useTransform,
   type AnimationPlaybackControls,
   type PanInfo,
 } from 'framer-motion'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLUMNAS, FILAS } from '../config'
 import { LETRAS, NUMEROS, coordenada } from '../lib/coordenadas'
 import { aportesDe, cantidadEnMetros, cuartosLibres, estaCompleta, tieneAportes } from '../lib/cuartos'
 import type { Celda as CeldaDatos, CeldaActiva, CeldasPorCoordenada } from '../types'
 import { Celda } from './Celda'
 import { ControlesVista, type ModoVista } from './ControlesVista'
-import { Paredes } from './Paredes'
+import { ALTO as ALTO_PARED, Paredes } from './Paredes'
 
 interface CuadriculaProps {
   celdas: CeldasPorCoordenada
@@ -31,10 +32,19 @@ const GRADOS_POR_PIXEL_INCLINACION = 0.3
 // Fondo ÷ ancho del piso, con un poco de margen por las etiquetas y los muros.
 const RELACION_FONDO_ANCHO = FILAS / COLUMNAS + 0.05
 const RETRASO_POR_DIAGONAL = 0.035
+// La perspectiva agranda un poco la parte cercana del piso; el margen deja espacio para la sombra y el vaivén.
+const AMPLIACION_PERSPECTIVA = 1.12
+const MARGEN_ESCENA = 40
 const MARGEN_TARJETA = 70
 const TRANSICION_VISTA = { type: 'spring', stiffness: 80, damping: 18 } as const
 
 const limitar = (valor: number, min: number, max: number) => Math.min(Math.max(valor, min), max)
+
+// Encoge el piso al girarlo para que nunca se salga del ancho de la pantalla.
+const escalaParaGiro = (grados: number) => {
+  const rad = (grados * Math.PI) / 180
+  return Math.min(1, 1 / (Math.abs(Math.cos(rad)) + RELACION_FONDO_ANCHO * Math.abs(Math.sin(rad))))
+}
 const aRadianes = (grados: number) => (grados * Math.PI) / 180
 
 export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaProps) {
@@ -48,11 +58,35 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
   const inclinacion = useMotionValue(INCLINACION_PERSPECTIVA)
   const giro = useMotionValue(GIRO_PERSPECTIVA)
   const giroInverso = useTransform(giro, (g) => -g)
-  // Encoge el piso al girarlo para que nunca se salga del ancho de la pantalla.
-  const escala = useTransform(giro, (g) => {
-    const rad = aRadianes(g)
-    return Math.min(1, 1 / (Math.abs(Math.cos(rad)) + RELACION_FONDO_ANCHO * Math.abs(Math.sin(rad))))
-  })
+  const escala = useTransform(giro, escalaParaGiro)
+  // Altura que ocupa el piso ya inclinado y girado: así la página no reserva espacio vacío y todo queda al alcance.
+  const pisoRef = useRef<HTMLDivElement>(null)
+  const alturaEscena = useMotionValue(0)
+  const recalcularAltura = useCallback(
+    (ancho: number, alto: number) => {
+      const [rt, rg] = [aRadianes(inclinacion.get()), aRadianes(giro.get())]
+      const huellaVertical = alto * Math.abs(Math.cos(rg)) + ancho * Math.abs(Math.sin(rg))
+      const alturaVisual = huellaVertical * Math.cos(rt) * AMPLIACION_PERSPECTIVA + ALTO_PARED * Math.sin(rt)
+      alturaEscena.set(alturaVisual * escalaParaGiro(giro.get()) + 2 * MARGEN_ESCENA)
+    },
+    [inclinacion, giro, alturaEscena],
+  )
+  const medidasPiso = useRef({ ancho: 0, alto: 0 })
+  useLayoutEffect(() => {
+    const piso = pisoRef.current
+    if (!piso) return
+    const medir = () => {
+      medidasPiso.current = { ancho: piso.offsetWidth, alto: piso.offsetHeight }
+      recalcularAltura(piso.offsetWidth, piso.offsetHeight)
+    }
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(piso)
+    return () => observador.disconnect()
+  }, [recalcularAltura])
+  const alCambiarVista = useCallback(() => recalcularAltura(medidasPiso.current.ancho, medidasPiso.current.alto), [recalcularAltura])
+  useMotionValueEvent(inclinacion, 'change', alCambiarVista)
+  useMotionValueEvent(giro, 'change', alCambiarVista)
   const posicionBrillo = useTransform(giro, (g) => `${50 + 50 * Math.sin(aRadianes(g))}%`)
 
   // Funciones estables para que las 320 celdas no se vuelvan a dibujar cada vez que cambia la tarjeta.
@@ -127,7 +161,8 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
     <>
       <div className="flex w-full flex-col items-center gap-6">
         <motion.div
-          className="relative w-full cursor-grab px-6 py-10 touch-pan-y select-none [perspective:2200px] active:cursor-grabbing"
+          className="relative flex w-full cursor-grab items-center px-6 touch-pan-y select-none [perspective:2200px] active:cursor-grabbing"
+          style={{ height: alturaEscena }}
           onPanStart={alEmpezarArrastre}
           onPan={alArrastrar}
           onPanEnd={alTerminarArrastre}
@@ -136,7 +171,7 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
           }}
         >
           <motion.div
-            className="relative [transform-style:preserve-3d]"
+            className="relative w-full [transform-style:preserve-3d]"
             animate={{ y: [0, -6, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
           >
@@ -147,7 +182,7 @@ export function Cuadricula({ celdas, seleccionadas, onSeleccionar }: CuadriculaP
                 className="absolute -inset-3 rounded-md bg-[#7a4e24]/40 blur-xl"
                 style={{ transform: 'translateZ(-2px)' }}
               />
-              <div className="relative grid grid-cols-[1rem_1fr] gap-x-1 gap-y-1 sm:grid-cols-[1.5rem_1fr] sm:gap-x-2 sm:gap-y-1.5 rounded-[8px] bg-[#ffe6b3] p-1.5 shadow-[inset_0_0_0_3px_rgba(91,58,30,0.55)] [transform-style:preserve-3d]">
+              <div ref={pisoRef} className="relative grid grid-cols-[1rem_1fr] gap-x-1 gap-y-1 sm:grid-cols-[1.5rem_1fr] sm:gap-x-2 sm:gap-y-1.5 rounded-[8px] bg-[#ffe6b3] p-1.5 shadow-[inset_0_0_0_3px_rgba(91,58,30,0.55)] [transform-style:preserve-3d]">
                 <Paredes giro={giro} inclinacion={inclinacion} />
                 <span />
                 <div className="grid px-[3px] sm:px-[5px]" style={{ gridTemplateColumns: `repeat(${COLUMNAS}, minmax(0, 1fr))` }}>

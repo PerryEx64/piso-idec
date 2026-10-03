@@ -32,9 +32,12 @@ export function VistaPublica() {
         <>
           <Progreso cuartos={totalCuartos(celdas)} totalMetros={TOTAL_CELDAS} />
           <Cuadricula celdas={celdas} />
-          <EnlaceBoton href="#/ranking" variante="miel">
-            Ver ranking de apadrinadores
-          </EnlaceBoton>
+          <div className="flex flex-wrap justify-center gap-3">
+            <EnlaceBoton href="#/aportar" variante="miel">
+              ¿Cómo puedo aportar?
+            </EnlaceBoton>
+            <EnlaceBoton href="#/ranking">Ver ranking de apadrinadores</EnlaceBoton>
+          </div>
         </>
       )}
       {!usuario && (

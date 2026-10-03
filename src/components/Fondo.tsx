@@ -33,7 +33,7 @@ const DESTELLOS = [
 /** Cielo con nubes y destellos que se mueven despacio detrás de todo. */
 export function Fondo() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden print:hidden">
       <Nube arriba="6%" tamano={180} duracion={90} retraso={-20} />
       <Nube arriba="18%" tamano={120} duracion={120} retraso={-70} />
       <Nube arriba="48%" tamano={150} duracion={105} retraso={-45} />

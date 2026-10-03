@@ -14,8 +14,10 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(180deg, #bfe6f6 0%, #e4f3f1 28%, #fdf1dc 62%, #fbe0bd 100%) fixed;
   color: var(--color-tinta);
+  overflow-x: hidden;
   overflow-x: clip;
   font-family: var(--font-sans);
 }
@@ -52,5 +54,11 @@ body {
       inset 0 0 0 2px #7a4017,
       0 3px 0 #7a4017,
       0 5px 7px rgba(90, 45, 10, 0.35);
+  }
+}
+
+@media print {
+  body {
+    background: white;
   }
 }

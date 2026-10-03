@@ -1,7 +1,7 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion'
 import type { CSSProperties } from 'react'
 
-const ALTO = 50
+export const ALTO = 50
 const ALTO_MINIMO = 7
 const GROSOR = 12
 

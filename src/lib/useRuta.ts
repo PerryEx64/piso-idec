@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-export type Ruta = 'publica' | 'admin' | 'ranking'
+export type Ruta = 'publica' | 'admin' | 'ranking' | 'aportar'
 
 const suscribir = (alCambiar: () => void) => {
   window.addEventListener('hashchange', alCambiar)
@@ -14,5 +14,6 @@ export function useRuta(): Ruta {
   const hash = useSyncExternalStore(suscribir, leerHash)
   if (hash.startsWith('#/admin')) return 'admin'
   if (hash.startsWith('#/ranking')) return 'ranking'
+  if (hash.startsWith('#/aportar')) return 'aportar'
   return 'publica'
 }
