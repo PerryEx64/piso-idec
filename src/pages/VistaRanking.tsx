@@ -2,10 +2,13 @@ import { EnlaceBoton } from '../components/Boton'
 import { Cargando } from '../components/Cargando'
 import { Encabezado } from '../components/Encabezado'
 import { Ranking } from '../components/Ranking'
+import { RankingAdmin } from '../components/RankingAdmin'
 import { useCeldas } from '../lib/useCeldas'
+import { useSesion } from '../lib/useSesion'
 
 export function VistaRanking() {
   const { celdas, cargando, error } = useCeldas()
+  const { esAdmin } = useSesion()
 
   return (
     <>
@@ -19,6 +22,8 @@ export function VistaRanking() {
         </p>
       ) : cargando ? (
         <Cargando texto="Cargando el ranking…" />
+      ) : esAdmin ? (
+        <RankingAdmin celdas={celdas} />
       ) : (
         <Ranking celdas={celdas} />
       )}

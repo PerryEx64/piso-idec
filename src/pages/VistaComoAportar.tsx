@@ -114,6 +114,10 @@ export function VistaComoAportar() {
             </table>
           </TablaEnMarco>
           <p>
+            Si tu aporte es un poco mayor que lo que cuesta, el excedente se suma a un fondo común: queda registrado a tu nombre y se
+            usa para completar más cuartos de metro del piso.
+          </p>
+          <p>
             No se espera que lleguen {TOTAL_METROS} personas con un metro cada una, ni que todos puedan aportar lo mismo. Por eso el
             metro se puede dividir: todos los aportes suman, y varias personas pueden compartir un mismo metro.
           </p>

@@ -51,6 +51,43 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    // Fondo común de excedentes: quién dejó cuánto y en qué se usó. Solo lo ven los administradores.
+    function movimientoValido() {
+      let m = request.resource.data;
+      return m.keys().hasOnly(['nombre', 'centavos', 'tipo', 'nota', 'origen', 'fecha'])
+        && (!('origen' in m) || m.origen in ['casillas', 'directo'])
+        && m.nombre is string && m.nombre.size() > 0 && m.nombre.size() <= 80
+        && m.centavos is int
+        && ((m.tipo == 'excedente' && m.centavos > 0 && m.centavos <= 100000000)
+          || (m.tipo == 'uso' && m.centavos < 0 && m.centavos >= -100000000))
+        && m.nota is string && m.nota.size() <= 160
+        && m.fecha == request.time;
+    }
+
+    match /excedentes/{id} {
+      allow read: if esAdmin();
+      allow create: if esAdmin() && movimientoValido();
+      allow update: if false;
+      allow delete: if esAdmin();
+    }
+
+    // Dinero recibido de cada persona. Solo lo ven los administradores.
+    function pagoValido() {
+      let p = request.resource.data;
+      return p.keys().hasOnly(['nombre', 'centavos', 'nota', 'fecha'])
+        && p.nombre is string && p.nombre.size() > 0 && p.nombre.size() <= 80
+        && p.centavos is int && p.centavos > 0 && p.centavos <= 100000000
+        && p.nota is string && p.nota.size() <= 160
+        && p.fecha == request.time;
+    }
+
+    match /pagos/{id} {
+      allow read: if esAdmin();
+      allow create: if esAdmin() && pagoValido();
+      allow update: if false;
+      allow delete: if esAdmin();
+    }
+
     match /admins/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
 

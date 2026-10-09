@@ -1,5 +1,6 @@
 import type { CeldasPorCoordenada } from '../types'
 import { normalizar } from './cuartos'
+import { FONDO_COMUN_NOMBRE } from './excedentes'
 import { ordenarCoordenadas } from './coordenadas'
 
 export interface Apadrinador {
@@ -10,9 +11,10 @@ export interface Apadrinador {
   posicion: number
 }
 
-const NOMBRES_ANONIMOS = new Set(['anonimo', 'anonima'])
+// El fondo común y los anónimos no son una persona: no entran al ranking.
+const NOMBRES_SIN_RANKING = new Set(['anonimo', 'anonima', normalizar(FONDO_COMUN_NOMBRE)])
 
-/** Suma los cuartos de metro por persona. Los anónimos no se agrupan: no son una sola persona. */
+/** Suma los cuartos de metro por persona. */
 export function calcularRanking(celdas: CeldasPorCoordenada): Apadrinador[] {
   const porPersona = new Map<string, { nombre: string; cuartos: number }>()
 
@@ -21,7 +23,7 @@ export function calcularRanking(celdas: CeldasPorCoordenada): Apadrinador[] {
       const nombre = cuarto.replace(/\s+/g, ' ').trim()
       if (!nombre) continue
       const clave = normalizar(nombre)
-      if (NOMBRES_ANONIMOS.has(clave)) continue
+      if (NOMBRES_SIN_RANKING.has(clave)) continue
       const actual = porPersona.get(clave)
       if (actual) actual.cuartos += 1
       else porPersona.set(clave, { nombre, cuartos: 1 })
