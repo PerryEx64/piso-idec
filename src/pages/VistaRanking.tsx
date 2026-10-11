@@ -3,6 +3,7 @@ import { Cargando } from '../components/Cargando'
 import { Encabezado } from '../components/Encabezado'
 import { Ranking } from '../components/Ranking'
 import { RankingAdmin } from '../components/RankingAdmin'
+import { TablaFondoAdmin } from '../components/TablaFondo'
 import { useCeldas } from '../lib/useCeldas'
 import { useSesion } from '../lib/useSesion'
 
@@ -23,7 +24,10 @@ export function VistaRanking() {
       ) : cargando ? (
         <Cargando texto="Cargando el ranking…" />
       ) : esAdmin ? (
-        <RankingAdmin celdas={celdas} />
+        <>
+          <RankingAdmin celdas={celdas} />
+          <TablaFondoAdmin />
+        </>
       ) : (
         <Ranking celdas={celdas} />
       )}

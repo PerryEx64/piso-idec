@@ -17,7 +17,7 @@ export function RankingAdmin({ celdas }: { celdas: CeldasPorCoordenada }) {
           <Boton onClick={reintentar}>Reintentar</Boton>
         </div>
       )}
-      <Ranking celdas={celdas} pagos={error ? undefined : pagos} />
+      <Ranking celdas={celdas} pagos={error ? undefined : pagos} esAdmin />
     </>
   )
 }
